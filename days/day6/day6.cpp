@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 //#include <algorithm>
-//not 568658
+// not 9759642 too low
 using namespace std;
 
 const string ON = "turn on ";
@@ -31,16 +31,19 @@ struct Point {
 
 void read_line(const string&, string&, Point&, Point&);
 
-void turn_on(bool[1000][1000], const Point&, const Point&);
+void turn_on(int**, const Point&, const Point&);
 
-void turn_off(bool[1000][1000], const Point&, const Point&);
+void turn_off(int**, const Point&, const Point&);
 
-void toggle(bool[1000][1000], const Point&, const Point&);
+void toggle(int**, const Point&, const Point&);
 
-int number_of_light_on(bool[1000][1000]);
+int number_of_light_on(int**);
 
 int main (){
-    bool matrix[1000][1000]{false};
+    int **matrix = new int*[1000]{0};
+    for(int i = 0; i < 1000; i++){
+        matrix[i] = new int[1000]{0};
+    }
     string line{},command{};
     Point start{};
     Point end{};
@@ -65,8 +68,15 @@ int main (){
         }
     }
 
-    cout<< "the number of light up are: " << number_of_light_on(matrix) << endl;
+    int * m = new int[1000];
+    *(m+10) = 12;
 
+    cout<< "The luminosity of light is: " << number_of_light_on(matrix) << endl;
+
+    for(int i = 0; i< 1000; ++i){
+        delete [] matrix[i];
+    }
+    delete [] matrix;
 }
 
 void read_line(const string& line, string& command, Point& start, Point& end){
@@ -93,37 +103,37 @@ void read_line(const string& line, string& command, Point& start, Point& end){
     );
 }
 
-void turn_on(bool matrix[1000][1000], const Point& start, const Point& end){
+void turn_on(int **matrix, const Point& start, const Point& end){
     for (int i = start.x; i <= end.x; ++i){
         for (int k = start.y; k <= end.y; ++k){
-            matrix[i][k] = true;
+            ++matrix[i][k];
         }
     }
 }
 
-void turn_off(bool matrix[1000][1000], const Point& start, const Point& end){
+void turn_off(int **matrix, const Point& start, const Point& end){
     for (int i = start.x; i <= end.x; ++i){
         for (int k = start.y; k <= end.y; ++k){
-            matrix[i][k] = false;
+            if(matrix[i][k]>0){
+                --matrix[i][k];
+            }
         }
     }
 }
 
-void toggle(bool matrix[1000][1000], const Point& start, const Point& end){
+void toggle(int **matrix, const Point& start, const Point& end){
     for (int i = start.x; i <= end.x; ++i){
         for (int k = start.y; k <= end.y; ++k){
-            matrix[i][k] = !matrix[i][k];
+            matrix[i][k]+=2;
         }
     }
 }
 
-int number_of_light_on(bool matrix[1000][1000]){
+int number_of_light_on(int **matrix){
     int number_of_light_on{0};
     for (int i = 0; i < 1000; ++i){
         for (int k = 0; k < 1000; ++k){
-            if(matrix[i][k]){
-                ++number_of_light_on;
-            }
+            number_of_light_on+=matrix[i][k];
         }
     }
     return number_of_light_on;
