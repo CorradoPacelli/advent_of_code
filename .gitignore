@@ -9,6 +9,7 @@ build/
 
 # VS Code
 .vscode/
+*.json
 
 # OS
 Thumbs.db
