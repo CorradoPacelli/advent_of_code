@@ -3,6 +3,7 @@
 #include <fstream>
 #include <sstream>
 #include <utility>
+#include <vector>
 
 //15851356540 too low
 //5361735137219
@@ -10,11 +11,12 @@
 // 2 star
 //1549697693318169 too much
 //11685385052098 too low
+//11744693538946
 
 using namespace std;
 
-// return 0 if succeed, 1 if it fails
-int read_right_to_left_om_colums( istringstream& s1,  istringstream& s2,  istringstream& s3,  istringstream& s4, long long unsigned int* operand);
+//returns the new offset if succeed 0 uf fails
+int read_one_problem(int offset, std::vector<string>& lines, std::vector<int>& operands, char& op);
 
 int main() {
     ifstream file("input.txt");
@@ -24,158 +26,84 @@ int main() {
         return 1;
     }
 
-    string first_line{};
-    string second_line{};
-    string third_line{};
-    string fourth_line{};
-    string operator_line{};
+    vector<string> lines;
+    string buffer{};
+
+    while (getline(file, buffer)) {
+        lines.push_back(std::move(buffer));
+    }
+
     long long unsigned int result{0};
-    long long unsigned int partial_result{0};
 
-    getline(file, first_line);
-    getline(file, second_line);
-    getline(file, third_line);
-    getline(file, fourth_line);
-    getline(file, operator_line);
 
-    istringstream ss_first(std::move(first_line));
-    istringstream ss_second(std::move(second_line));
-    istringstream ss_third(std::move(third_line));
-    istringstream ss_fourth(std::move(fourth_line));
-    istringstream ss_op(std::move(operator_line));
+    vector<int> operands;
+    char op{};
+    int offset = read_one_problem(0, lines, operands, op);
 
-    while (true) {
-
-        long long unsigned int first_operand{0};
-        long long unsigned int second_operand{0};
-        long long unsigned int third_operand{0};
-        long long unsigned int fourth_operand{0};
-        string op{};
-        ss_op >> op;
-
-        if ((op != "+") && (op != "*")) {
-            throw invalid_argument("Invalid operator");
+    while (offset) {
+        long long unsigned int partial_result{0};
+        // compute partial result
+        for (auto o : operands){
+            if (op == '+') {
+                partial_result += o;
+            } else if (op == '*') {
+                if (partial_result == 0) {
+                    partial_result = o;
+                } else {
+                    partial_result *= o;
+                }
+            } 
         }
 
-        if(read_right_to_left_om_colums(ss_first, ss_second, ss_third, ss_fourth, &first_operand) == 1){
-            break;
-        }
-        cout << "first operand " << first_operand << endl;
-        partial_result = first_operand;
-
-        int result_function = read_right_to_left_om_colums(ss_first, ss_second, ss_third, ss_fourth, &second_operand);
-        if(result_function == 1){
-            break;
-        } else if (result_function == 0){
-            if (op == "+") {
-                partial_result += second_operand;
-            } else{
-                partial_result *= second_operand;
-            }
-        } else {
-            cout << "The partial result is: " << partial_result << endl;
-            result += partial_result;
-            cout << "--The final result is: " << result << endl;
-            partial_result = 0;
-            continue;
-        }
-        cout << "second operand " << second_operand << endl;
-
-        result_function = read_right_to_left_om_colums(ss_first, ss_second, ss_third, ss_fourth, &third_operand);
-        if(result_function == 1){
-            break;
-        } else if (result_function == 0){
-            if (op == "+") {
-                partial_result += third_operand;
-            } else{
-                partial_result *= third_operand;
-            }
-        } else {
-            cout << "The partial result is: " << partial_result << endl;
-            result += partial_result;
-            cout << "--The final result is: " << result << endl;
-            partial_result = 0;
-            continue;
-        }
-        cout << "third operand " << third_operand << endl;
-
-        result_function = read_right_to_left_om_colums(ss_first, ss_second, ss_third, ss_fourth, &fourth_operand);
-        if(result_function == 1){
-            break;
-        } else if (result_function == 0){
-            if (op == "+") {
-                partial_result += fourth_operand;
-            } else{
-                partial_result *= fourth_operand;
-            }
-        } else {
-            cout << "The partial result is: " << partial_result << endl;
-            result += partial_result;
-            cout << "--The final result is: " << result << endl;
-            partial_result = 0;
-            continue;
-        }
-        cout << "forth operand " << fourth_operand << endl;
-
-        ss_first.get();
-        ss_second.get();
-        ss_third.get();
-        ss_fourth.get();
-
-        cout << "The partial result is: " << partial_result << endl;
+        cout << "Patial result: " << partial_result << endl;
         result += partial_result;
-        cout << "--The final result is: " << result << endl;
-        partial_result = 0;
+
+        offset = read_one_problem( offset, lines, operands, op);
+
     }
 
     cout << "--The final result is: " << result << endl;
 }
 
-int read_right_to_left_om_colums(istringstream& s1, istringstream& s2, istringstream& s3, istringstream& s4, long long unsigned int* operand){
+int read_one_problem(int offset, std::vector<string>& lines, std::vector<int>& operands, char& op){
+    bool none_read_anything{true};
+    operands.clear();
+    int internal_operand_offselt{0};
 
-    bool changed = false;
-    char first_char = s1.get();
-    if (first_char == EOF) {
-        return 1;
-    } else if (first_char != ' ') {
-        changed = true;
-        *operand = first_char - '0';
+    while (none_read_anything) {
+        none_read_anything = false;
+        for (int line{0}; line < lines.size(); ++line) {
+
+            if (lines.at(0).size() <= offset) {
+                if (operands.size() == 0 ) return 0;
+                return offset;
+            }
+            
+            char char_read = lines[line].at(offset);
+
+            if (char_read != ' '){
+                none_read_anything = true;
+
+                if (char_read == '+' || char_read == '*'){
+                    op = char_read;
+                }
+
+                if (isdigit(char_read)) {
+                    if (operands.size() < internal_operand_offselt + 1) {
+                        operands.push_back(char_read - '0');
+                    } else {
+                        operands[internal_operand_offselt] *= 10;
+                        operands[internal_operand_offselt] += char_read - '0';
+                    }
+                }
+            } 
+        }
+        ++offset;
+        ++internal_operand_offselt;
     }
 
-    char second_char = s2.get();
-    if (second_char == EOF) {
-        return 1;
-    } else if (second_char != ' ') {
-        changed = true;
-        *operand *= 10;
-        *operand += (second_char - '0');
-    }
-
-    char third_char = s3.get();
-    if (third_char == EOF) {
-        return 1;
-    } else if (third_char != ' ') {
-        changed = true;
-        *operand *= 10;
-        *operand += (third_char - '0');
-    }
-
-    char forth_char = s4.get();
-    if (forth_char == EOF) {
-        return 1;
-    } else if (forth_char != ' ') {
-        changed = true;
-        *operand *= 10;
-        *operand += (forth_char - '0');
-    }
-
-    if (!changed){
-        return -1;
-    }
-
-    return 0;
+    return offset;
 }
-
 
 // first star :)
 /*
