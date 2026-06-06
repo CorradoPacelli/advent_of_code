@@ -2,9 +2,9 @@
 #include <iostream>
 #include <string>
 #include <set>
-#include <unordered_map>
+#include <unordered_set>
+#include <map>
 #include <sstream>
-#include <vector>
 
 #include "point.hpp"
 
@@ -83,32 +83,51 @@ int main () {
         points_ordered_by_euclidean_distance = points_ordered_by_euclidean_distance_to_be_added;
     }
 
-    /*
     cout << "Points in set: " << endl;
     for (auto it = points_ordered_by_euclidean_distance.begin(); it != points_ordered_by_euclidean_distance.end(); ++it) {
         cout << it->get_first().get_x() << "," << it->get_first().get_y() << "," << it->get_first().get_z() << " - ";
         cout << it->get_second().get_x() << "," << it->get_second().get_y() << "," << it->get_second().get_z() << endl;
     }
     cout << "With a total of " << points_ordered_by_euclidean_distance.size() << " pairs." << endl;
-    */
+
     compute_euclidean_distance(points_ordered_by_euclidean_distance);
 
-    unordered_map<int, vector<point_3d>> circuits_of_points;
+    map<int, set<point_3d>> circuits_of_points;
     
     int circuit{0};
-    // TODO: you have to handle the situation where you have to merge 2 dicructis together
-    for (auto it = points_ordered_by_euclidean_distance.begin(); it != points_ordered_by_euclidean_distance.end(); ++it) {
+    for (auto couple_of_points = points_ordered_by_euclidean_distance.begin(); couple_of_points != points_ordered_by_euclidean_distance.end(); ++couple_of_points) {
         bool added = false;
-        for (auto it2 = circuits_of_points.begin(); it2 != circuits_of_points.end(); ++it2){
-            // if you detect that you have to add it to an existing circuit
-                // add to the circuti the point
-                added = true;
+        map<int, set<point_3d>> circuits_of_points_to_be_added = circuits_of_points;
+        for (auto pair_circuit_points = circuits_of_points.begin(); pair_circuit_points != circuits_of_points.end(); ++pair_circuit_points) {
+            for (auto points : pair_circuit_points->second){
+                int first_circuit_found{0};
+                if (points == couple_of_points->get_first() || points == couple_of_points->get_second()){
+                    if (!added){
+                        circuits_of_points_to_be_added.at(pair_circuit_points->first).insert(couple_of_points->get_first());
+                        circuits_of_points_to_be_added.at(pair_circuit_points->first).insert(couple_of_points->get_second());
+                        first_circuit_found = pair_circuit_points->first;
+                        added = true;
+                    } else {
+                        circuits_of_points_to_be_added.at(first_circuit_found).insert(points);
+                        circuits_of_points_to_be_added.erase(pair_circuit_points->first);
+                    }
+                }
+            }
         }
         if (!added) {
-            //creare a new circuit with the 2 points
+            circuits_of_points.insert(make_pair(circuit++, set<point_3d>{couple_of_points->get_first(), couple_of_points->get_second()}));
+        } else {
+            circuits_of_points_to_be_added = circuits_of_points;
         }
     }
 
     cout << "There are in total " << circuits_of_points.size() << " neirest neibourgs points." << endl;
+
+    for (auto& circuit : circuits_of_points){
+        cout << "Cirtuit number:" << circuit.first << endl;
+        for (auto& point : circuit.second){
+            cout << "(" << point.get_x() << "," << point.get_y() << "," << point.get_z() << ")" << endl;
+        }
+    }
 
 }

@@ -19,6 +19,9 @@ public:
     bool operator!=(const point_3d& other) const {
         return !(*this == other);
     }
+    bool operator<(const point_3d& other) const {
+        return ( pow(x,2) + pow(y,2) + pow(z,2) ) < ( pow(other.x,2) + pow(other.y,2) + pow(other.z,2) );
+    }
 };
 
 class couple_of_3d_points {
