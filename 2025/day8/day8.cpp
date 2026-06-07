@@ -92,40 +92,71 @@ int main () {
 
     compute_euclidean_distance(points_ordered_by_euclidean_distance);
 
-    map<int, set<point_3d>> circuits_of_points;
-    
-    int circuit{0};
-    for (auto couple_of_points = points_ordered_by_euclidean_distance.begin(); couple_of_points != points_ordered_by_euclidean_distance.end(); ++couple_of_points) {
-        bool added = false;
-        map<int, set<point_3d>> circuits_of_points_to_be_added = circuits_of_points;
-        for (auto pair_circuit_points = circuits_of_points.begin(); pair_circuit_points != circuits_of_points.end(); ++pair_circuit_points) {
-            for (auto points : pair_circuit_points->second){
-                int first_circuit_found{0};
-                if (points == couple_of_points->get_first() || points == couple_of_points->get_second()){
-                    if (!added){
-                        circuits_of_points_to_be_added.at(pair_circuit_points->first).insert(couple_of_points->get_first());
-                        circuits_of_points_to_be_added.at(pair_circuit_points->first).insert(couple_of_points->get_second());
-                        first_circuit_found = pair_circuit_points->first;
-                        added = true;
-                    } else {
-                        circuits_of_points_to_be_added.at(first_circuit_found).insert(points);
-                        circuits_of_points_to_be_added.erase(pair_circuit_points->first);
+    map<int, set<point_3d> > circuits;
+    int number_of_circuits{0};
+    unordered_set<point_3d> total_points_in_circuits;
+
+    for (auto couple : points_ordered_by_euclidean_distance){
+        if ((total_points_in_circuits.find(couple.get_first()) != total_points_in_circuits.end())
+            || (total_points_in_circuits.find(couple.get_second()) != total_points_in_circuits.end())) {
+            //this means that one of the points already exist so we have to update a circuits
+            if ((total_points_in_circuits.find(couple.get_first()) != total_points_in_circuits.end())
+            && (total_points_in_circuits.find(couple.get_second()) != total_points_in_circuits.end())) {
+                //difficult to implement, since we also have to handle merges of two cirucits
+                int circuit_one{-1}, circuit_two{-1};
+                for (auto sets = circuits.begin(); sets != circuits.end(); ++sets) {
+                    for ( auto point = sets->second.begin(); point != sets->second.end(); ++point ) {
+                        if (*point == couple.get_first()) {
+                            circuit_one = sets->first;
+                            break;
+                        }
+                        if (*point == couple.get_second()) {
+                            circuit_two = sets->first;
+                            break;
+                        }
+                    }
+                }
+
+                if (circuit_one != circuit_two) {
+                    circuits[circuit_one].insert(circuits[circuit_two].begin(), circuits[circuit_two].end());
+                    circuits.erase(circuit_two);
+                }
+
+
+            } else {
+                //just one of the 2 points is already in the circuits, so we can just add the other point
+                if (total_points_in_circuits.find(couple.get_first()) != total_points_in_circuits.end()) {
+                    // insert second elemenmt
+                    for (auto sets = circuits.begin(); sets != circuits.end(); ++sets) {
+                        for ( auto point = sets->second.begin(); point != sets->second.end(); ++point ) {
+                            if (*point == couple.get_first()) {
+                                circuits[sets->first].emplace(couple.get_second());
+                                break;
+                            }
+                        }
+                    }
+                } else {
+                    // insert first element
+                    for (auto sets = circuits.begin(); sets != circuits.end(); ++sets) {
+                        for ( auto point = sets->second.begin(); point != sets->second.end(); ++point ) {
+                            if (*point == couple.get_second()) {
+                                circuits[sets->first].emplace(couple.get_first());
+                                break;
+                            }
+                        }
                     }
                 }
             }
-        }
-        if (!added) {
-            circuits_of_points.insert(make_pair(circuit++, set<point_3d>{couple_of_points->get_first(), couple_of_points->get_second()}));
         } else {
-            circuits_of_points_to_be_added = circuits_of_points;
+            circuits.emplace(number_of_circuits++, std::move(set<point_3d>{couple.get_first(), couple.get_second()}));
+            total_points_in_circuits.emplace(couple.get_first());
+            total_points_in_circuits.emplace(couple.get_second());
         }
     }
 
-    cout << "There are in total " << circuits_of_points.size() << " neirest neibourgs points." << endl;
-
-    for (auto& circuit : circuits_of_points){
-        cout << "Cirtuit number:" << circuit.first << endl;
-        for (auto& point : circuit.second){
+    for (auto circuit = circuits.begin(); circuit != circuits.end(); ++circuit) {
+        cout << "Cirtuit number:" << circuit->first << endl;
+        for (auto& point : circuit->second){
             cout << "(" << point.get_x() << "," << point.get_y() << "," << point.get_z() << ")" << endl;
         }
     }

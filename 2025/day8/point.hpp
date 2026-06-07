@@ -24,6 +24,15 @@ public:
     }
 };
 
+namespace std{
+    template <>
+    struct hash<point_3d> {
+        std::size_t operator()(const point_3d& p) const {
+            return (p.get_x()*100 + p.get_y())*100 + p.get_z();
+        }
+    };
+}
+
 class couple_of_3d_points {
 private:
     point_3d first;
