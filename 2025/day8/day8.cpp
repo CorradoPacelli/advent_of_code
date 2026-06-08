@@ -1,164 +1,125 @@
 #include <fstream>
 #include <iostream>
 #include <string>
-#include <set>
-#include <unordered_set>
-#include <map>
+#include <vector>
 #include <sstream>
+#include <algorithm>
+#include <numeric>
 
 #include "point.hpp"
 
+constexpr int CONNECTION_TO_MAKE = 1000;
+
 using namespace std;
 
-//section to limit the number of element to 1000 when it comes to add into the set
-constexpr int MAX_ELEMENTS = 10;
+// Union-Find data structure to easily track connected circuits
+struct CircuitTracker {
+    vector<int> parent_leader;
+    vector<int> circuit_size;
 
-void insert_with_limit(set<couple_of_3d_points>& points_ordered_by_euclidean_distance, couple_of_3d_points couple){
-    if (points_ordered_by_euclidean_distance.size() < MAX_ELEMENTS){
-        points_ordered_by_euclidean_distance.insert(couple);
-    } else {
-        auto it = points_ordered_by_euclidean_distance.lower_bound(couple);
-        if (it != points_ordered_by_euclidean_distance.end()){
-            points_ordered_by_euclidean_distance.erase(std::prev(points_ordered_by_euclidean_distance.end()));
-            points_ordered_by_euclidean_distance.insert(couple);
+    CircuitTracker(int total_elements) {
+        parent_leader.resize(total_elements);
+        circuit_size.resize(total_elements, 1);
+        iota(parent_leader.begin(), parent_leader.end(), 0);
+    }
+
+    int find_leader(int box_index) {
+        if (parent_leader[box_index] == box_index)
+            return box_index;
+        return parent_leader[box_index] = find_leader(parent_leader[box_index]);
+    }
+
+    void connect_boxes(int box_a, int box_b) {
+        int leader_a = find_leader(box_a);
+        int leader_b = find_leader(box_b);
+        if (leader_a != leader_b) {
+            if (circuit_size[leader_a] < circuit_size[leader_b])
+                swap(leader_a, leader_b);
+            parent_leader[leader_b] = leader_a;
+            circuit_size[leader_a] += circuit_size[leader_b];
         }
     }
-}
+};
 
-void compute_euclidean_distance(set<couple_of_3d_points>& points_ordered_by_euclidean_distance){
-    for(auto it : points_ordered_by_euclidean_distance){
-        cout << ( pow(it.get_first().get_x() - it.get_second().get_x(),2) 
-        + pow(it.get_first().get_y() - it.get_second().get_y(),2) 
-        + pow(it.get_first().get_z() - it.get_second().get_z(),2) ) << endl;
-    }
-}
-// end section
+int main() {
+    ifstream input_file("input.txt");
 
-int main () {
-    fstream file("rinput.txt");
-
-    if (!file) {
-        cout << "Unable to open file";
+    if (!input_file) {
+        cout << "Unable to open file\n";
         return 1;
     }
 
-    string line{};
-    set<couple_of_3d_points> points_ordered_by_euclidean_distance; 
+    string line;
+    vector<point_3d> junction_boxes;
 
-    getline(file, line);
-    string x,y,z;
-    stringstream raw_points(line);
-    getline(raw_points, x, ',');
-    getline(raw_points, y, ',');
-    getline(raw_points, z, ',');
-    point_3d point1(stoi(x), stoi(y), stoi(z));
-    getline(file, line);
-    stringstream raw_points2(line);
-    getline(raw_points2, x, ',');
-    getline(raw_points2, y, ',');
-    getline(raw_points2, z, ',');
-    point_3d point2(stoi(x), stoi(y), stoi(z));
-
-    points_ordered_by_euclidean_distance.insert(couple_of_3d_points(point1, point2));
-
-    while(getline(file, line)){
-        stringstream raw_points(line);
-        
-        string x,y,z;
-        getline(raw_points, x, ',');
-        getline(raw_points, y, ',');
-        getline(raw_points, z, ',');
-
-        point_3d point(stoi(x), stoi(y), stoi(z));
-
-        set<couple_of_3d_points> points_ordered_by_euclidean_distance_to_be_added = points_ordered_by_euclidean_distance;
-        for (auto it : points_ordered_by_euclidean_distance){
-            if (point != it.get_first()){
-                insert_with_limit(points_ordered_by_euclidean_distance_to_be_added, couple_of_3d_points(point, it.get_first()));
-            }
-            if (point != it.get_second()){
-                insert_with_limit(points_ordered_by_euclidean_distance_to_be_added, couple_of_3d_points(point, it.get_second()));
-            }
-        }
-        points_ordered_by_euclidean_distance = points_ordered_by_euclidean_distance_to_be_added;
+    while (getline(input_file, line)) {
+        stringstream coordinate_stream(line);
+        string x, y, z;
+        getline(coordinate_stream, x, ',');
+        getline(coordinate_stream, y, ',');
+        getline(coordinate_stream, z, ',');
+        junction_boxes.emplace_back(stoi(x), stoi(y), stoi(z));
     }
 
-    cout << "Points in set: " << endl;
-    for (auto it = points_ordered_by_euclidean_distance.begin(); it != points_ordered_by_euclidean_distance.end(); ++it) {
-        cout << it->get_first().get_x() << "," << it->get_first().get_y() << "," << it->get_first().get_z() << " - ";
-        cout << it->get_second().get_x() << "," << it->get_second().get_y() << "," << it->get_second().get_z() << endl;
-    }
-    cout << "With a total of " << points_ordered_by_euclidean_distance.size() << " pairs." << endl;
+    struct PotentialConnection {
+        int box_a_index;
+        int box_b_index;
+        long long squared_distance;
+    };
 
-    compute_euclidean_distance(points_ordered_by_euclidean_distance);
-
-    map<int, set<point_3d> > circuits;
-    int number_of_circuits{0};
-    unordered_set<point_3d> total_points_in_circuits;
-
-    for (auto couple : points_ordered_by_euclidean_distance){
-        if ((total_points_in_circuits.find(couple.get_first()) != total_points_in_circuits.end())
-            || (total_points_in_circuits.find(couple.get_second()) != total_points_in_circuits.end())) {
-            //this means that one of the points already exist so we have to update a circuits
-            if ((total_points_in_circuits.find(couple.get_first()) != total_points_in_circuits.end())
-            && (total_points_in_circuits.find(couple.get_second()) != total_points_in_circuits.end())) {
-                //difficult to implement, since we also have to handle merges of two cirucits
-                int circuit_one{-1}, circuit_two{-1};
-                for (auto sets = circuits.begin(); sets != circuits.end(); ++sets) {
-                    for ( auto point = sets->second.begin(); point != sets->second.end(); ++point ) {
-                        if (*point == couple.get_first()) {
-                            circuit_one = sets->first;
-                            break;
-                        }
-                        if (*point == couple.get_second()) {
-                            circuit_two = sets->first;
-                            break;
-                        }
-                    }
-                }
-
-                if (circuit_one != circuit_two) {
-                    circuits[circuit_one].insert(circuits[circuit_two].begin(), circuits[circuit_two].end());
-                    circuits.erase(circuit_two);
-                }
-
-
-            } else {
-                //just one of the 2 points is already in the circuits, so we can just add the other point
-                if (total_points_in_circuits.find(couple.get_first()) != total_points_in_circuits.end()) {
-                    // insert second elemenmt
-                    for (auto sets = circuits.begin(); sets != circuits.end(); ++sets) {
-                        for ( auto point = sets->second.begin(); point != sets->second.end(); ++point ) {
-                            if (*point == couple.get_first()) {
-                                circuits[sets->first].emplace(couple.get_second());
-                                break;
-                            }
-                        }
-                    }
-                } else {
-                    // insert first element
-                    for (auto sets = circuits.begin(); sets != circuits.end(); ++sets) {
-                        for ( auto point = sets->second.begin(); point != sets->second.end(); ++point ) {
-                            if (*point == couple.get_second()) {
-                                circuits[sets->first].emplace(couple.get_first());
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-        } else {
-            circuits.emplace(number_of_circuits++, std::move(set<point_3d>{couple.get_first(), couple.get_second()}));
-            total_points_in_circuits.emplace(couple.get_first());
-            total_points_in_circuits.emplace(couple.get_second());
+    vector<PotentialConnection> possible_connections;
+    for (int i = 0; i < junction_boxes.size(); ++i) {
+        for (int j = i + 1; j < junction_boxes.size(); ++j) {
+            possible_connections.push_back({i, j, junction_boxes[i].squared_distance_to(junction_boxes[j])});
         }
     }
 
-    for (auto circuit = circuits.begin(); circuit != circuits.end(); ++circuit) {
-        cout << "Cirtuit number:" << circuit->first << endl;
-        for (auto& point : circuit->second){
-            cout << "(" << point.get_x() << "," << point.get_y() << "," << point.get_z() << ")" << endl;
+    // Sort possible connections by distance ascending
+    sort(possible_connections.begin(), possible_connections.end(), [](const PotentialConnection& a, const PotentialConnection& b) {
+        return a.squared_distance < b.squared_distance;
+    });
+
+    CircuitTracker circuit_tracker(junction_boxes.size());
+
+    //int connections_to_process = min(CONNECTION_TO_MAKE, (int)possible_connections.size());
+    int connections_to_process = (int)possible_connections.size();
+    bool stop{false};
+    for (int i = 0; i < connections_to_process; ++i) {
+        circuit_tracker.connect_boxes(possible_connections[i].box_a_index, possible_connections[i].box_b_index);
+        for (auto sizes : circuit_tracker.circuit_size){
+            if (sizes == 1000){
+                cout << "found what you need for part 2:)" << endl;
+                cout << "index of point 1: " << possible_connections[i].box_a_index << endl;
+                cout << "index of point 2: " << possible_connections[i].box_b_index << endl;
+                cout << " point 1 x" << junction_boxes[possible_connections[i].box_a_index].get_x() << endl;
+                cout << " point 2 x" << junction_boxes[possible_connections[i].box_b_index].get_x() << endl;
+                cout << " the anwers is: " << junction_boxes[possible_connections[i].box_a_index].get_x() * junction_boxes[possible_connections[i].box_b_index].get_x() << endl;
+                stop = true;
+            }
+        }
+        if (stop){
+            break;
         }
     }
 
+    // Collect the sizes of all distinct circuits
+    vector<int> final_circuit_sizes;
+    for (int i = 0; i < junction_boxes.size(); ++i) {
+        if (circuit_tracker.parent_leader[i] == i) { // If it's a root, it represents a distinct circuit
+            final_circuit_sizes.push_back(circuit_tracker.circuit_size[i]);
+        }
+    }
+
+    // Sort descending to easily access the largest circuits
+    sort(final_circuit_sizes.rbegin(), final_circuit_sizes.rend());
+
+    long long circuit_size_product = 1;
+    int circuits_to_multiply = min(3, (int)final_circuit_sizes.size());
+    for (int i = 0; i < circuits_to_multiply; ++i) {
+        circuit_size_product *= final_circuit_sizes[i];
+    }
+
+    cout << "Product of the sizes of the 3 largest circuits: " << circuit_size_product << endl;
+
+    return 0;
 }
